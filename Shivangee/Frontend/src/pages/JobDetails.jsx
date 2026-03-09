@@ -63,12 +63,15 @@ const JobDetails = () => {
   const statusColors = {
     pending: 'badge-warning',
     assigned: 'badge-info',
+    accepted: 'badge-info',
     in_progress: 'badge-info',
     completed: 'badge-success',
     cancelled: 'badge-danger',
   };
 
   const isWorker = user?.role === 'worker' || user?.type === 'worker';
+  const isUser = user?.role === 'user' || user?.type === 'user';
+
   const canComplete = isWorker && job.status === 'in_progress';
   const canRate = !isWorker && job.status === 'completed' && !job.rated;
 
@@ -87,6 +90,7 @@ const JobDetails = () => {
           </div>
 
           <div className="space-y-4">
+
             <div>
               <h3 className="font-bold text-lg mb-2">Description</h3>
               <p className="text-gray-700">{job.description}</p>
@@ -98,11 +102,13 @@ const JobDetails = () => {
                 <div>
                   <span className="font-semibold">Category:</span> {job.category}
                 </div>
+
                 {job.pricing?.estimatedBudget && (
                   <div>
                     <span className="font-semibold">Budget:</span> ₹{job.pricing.estimatedBudget}
                   </div>
                 )}
+
                 {job.scheduledDate && (
                   <div>
                     <span className="font-semibold">Scheduled:</span>{' '}
@@ -119,13 +125,33 @@ const JobDetails = () => {
               </div>
             )}
 
+            {/* 🔐 OTP Display Only For User */}
+            {isUser && job.otp && !job.otp.verified && (
+              <div className="bg-green-50 border border-green-300 p-4 rounded-lg">
+                <h3 className="font-bold text-lg mb-2">Worker Verification OTP</h3>
+                <p className="text-3xl font-bold text-green-600 tracking-widest">
+                  {job.otp.code}
+                </p>
+                <p className="text-sm text-gray-600 mt-1">
+                  Share this OTP with the worker when they arrive to start the job.
+                </p>
+              </div>
+            )}
+
             <div className="flex gap-4 pt-4">
+
               {canComplete && (
-                <button onClick={handleComplete} className="btn-primary">Mark as Completed</button>
+                <button onClick={handleComplete} className="btn-primary">
+                  Mark as Completed
+                </button>
               )}
+
               {canRate && !showRating && (
-                <button onClick={() => setShowRating(true)} className="btn-primary">Rate Worker</button>
+                <button onClick={() => setShowRating(true)} className="btn-primary">
+                  Rate Worker
+                </button>
               )}
+
             </div>
 
             {showRating && (
@@ -134,6 +160,7 @@ const JobDetails = () => {
                 <RatingForm onSubmit={handleRatingSubmit} />
               </div>
             )}
+
           </div>
         </div>
       </div>

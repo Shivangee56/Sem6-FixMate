@@ -6,6 +6,7 @@ const jobSchema = new mongoose.Schema({
   category: { type: String, required: true },
   user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
   worker: { type: mongoose.Schema.Types.ObjectId, ref: 'Worker' },
+
   location: {
     type: { type: String, enum: ['Point'], default: 'Point' },
     coordinates: { type: [Number], required: true },
@@ -15,17 +16,28 @@ const jobSchema = new mongoose.Schema({
       state: String
     }
   },
+
   status: {
     type: String,
     enum: ['pending', 'assigned', 'accepted', 'in_progress', 'completed', 'cancelled'],
     default: 'pending'
   },
+
   pricing: {
     estimatedBudget: Number,
     finalAmount: { type: Number, default: 0 }
   },
+
   scheduledDate: Date,
+
+  // 🔐 OTP Verification System
+  otp: {
+    code: { type: String },
+    verified: { type: Boolean, default: false }
+  },
+
   createdAt: { type: Date, default: Date.now }
+
 }, { timestamps: true });
 
 jobSchema.index({ user: 1 });

@@ -21,17 +21,19 @@ import CreateJob from './pages/CreateJob';
 import JobDetails from './pages/JobDetails';
 import NotFound from './pages/NotFound';
 
+/* ⭐ NEW PAGE IMPORT */
+import WorkerDetails from './pages/WorkerDetails';
+
 function App() {
   return (
     <Router>
       <AuthProvider>
         <SocketProvider>
-          <div className="min-h-screen flex flex-col bg-gray-50">
+          <div className="flex flex-col min-h-screen bg-gray-50">
             <Navbar />
             <main className="flex-grow">
               <Routes>
              
-
                 <Route path="/" element={<Home />} />
                 <Route path="/login" element={<Login />} />
                 <Route path="/register/user" element={<RegisterUser />} />
@@ -39,7 +41,12 @@ function App() {
                 
                 <Route path="/user/dashboard" element={<PrivateRoute role="user"><UserDashboard /></PrivateRoute>} />
                 <Route path="/user/profile" element={<PrivateRoute role="user"><UserProfile /></PrivateRoute>} />
+
                 <Route path="/workers" element={<PrivateRoute role="user"><WorkerSearch /></PrivateRoute>} />
+
+                {/* ⭐ NEW WORKER DETAILS ROUTE */}
+                <Route path="/worker/:id" element={<PrivateRoute role="user"><WorkerDetails /></PrivateRoute>} />
+
                 <Route path="/jobs/create" element={<PrivateRoute role="user"><CreateJob /></PrivateRoute>} />
                 <Route path="/jobs/:id" element={<PrivateRoute><JobDetails /></PrivateRoute>} />
                 <Route path="/chat" element={<PrivateRoute><ChatPage /></PrivateRoute>} />

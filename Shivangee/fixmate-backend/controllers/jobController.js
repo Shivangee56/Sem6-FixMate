@@ -2,6 +2,11 @@ const Job = require('../models/Job');
 const User = require('../models/User');
 const Worker = require('../models/Worker');
 
+// Generate 4 digit OTP
+const generateOTP = () => {
+  return Math.floor(1000 + Math.random() * 9000).toString();
+};
+
 // Create a new job
 exports.createJob = async (req, res) => {
   try {
@@ -34,11 +39,11 @@ exports.createJob = async (req, res) => {
   }
 };
 
-// Get all jobs (with filters)
+// Get all jobs
 exports.getAllJobs = async (req, res) => {
   try {
     const { status, category, userId, workerId } = req.query;
-    
+
     let query = {};
 
     if (status) query.status = status;
@@ -46,11 +51,9 @@ exports.getAllJobs = async (req, res) => {
     if (userId) query.user = userId;
     if (workerId) query.worker = workerId;
 
-    // If user is logged in, filter based on their role
     if (req.user) {
       query.user = req.user._id;
     } else if (req.worker) {
-      // For workers, show pending jobs or jobs assigned to them
       query.$or = [
         { status: 'pending' },
         { worker: req.worker._id }
@@ -67,6 +70,7 @@ exports.getAllJobs = async (req, res) => {
       count: jobs.length,
       data: jobs
     });
+
   } catch (error) {
     res.status(500).json({
       success: false,
@@ -76,9 +80,10 @@ exports.getAllJobs = async (req, res) => {
   }
 };
 
-// Get single job by ID
+// Get single job
 exports.getJobById = async (req, res) => {
   try {
+
     const job = await Job.findById(req.params.id)
       .populate('user', 'name email phone address')
       .populate('worker', 'name email phone rating bio');
@@ -94,18 +99,23 @@ exports.getJobById = async (req, res) => {
       success: true,
       data: job
     });
+
   } catch (error) {
+
     res.status(500).json({
       success: false,
       message: 'Failed to fetch job',
       error: error.message
     });
+
   }
 };
 
-// Worker accepts a job
+// Worker accepts job
 exports.acceptJob = async (req, res) => {
+
   try {
+
     const job = await Job.findById(req.params.id);
 
     if (!job) {
@@ -124,6 +134,13 @@ exports.acceptJob = async (req, res) => {
 
     job.worker = req.worker._id;
     job.status = 'accepted';
+
+    // 🔐 Generate OTP
+    job.otp = {
+      code: generateOTP(),
+      verified: false
+    };
+
     await job.save();
 
     await job.populate('worker', 'name email phone');
@@ -133,19 +150,72 @@ exports.acceptJob = async (req, res) => {
       message: 'Job accepted successfully',
       data: job
     });
+
   } catch (error) {
+
     res.status(500).json({
       success: false,
       message: 'Failed to accept job',
       error: error.message
     });
+
   }
+
 };
 
-// Update job status (start, complete, cancel)
-exports.updateJobStatus = async (req, res) => {
+// 🔐 Verify OTP and start job
+exports.verifyJobOTP = async (req, res) => {
+
   try {
+
+    const { otp } = req.body;
+
+    const job = await Job.findById(req.params.id);
+
+    if (!job) {
+      return res.status(404).json({
+        success: false,
+        message: "Job not found"
+      });
+    }
+
+    if (!job.otp || job.otp.code !== otp) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid OTP"
+      });
+    }
+
+    job.otp.verified = true;
+    job.status = "in_progress";
+
+    await job.save();
+
+    res.status(200).json({
+      success: true,
+      message: "OTP verified. Job started.",
+      data: job
+    });
+
+  } catch (error) {
+
+    res.status(500).json({
+      success: false,
+      message: "OTP verification failed",
+      error: error.message
+    });
+
+  }
+
+};
+
+// Update job status
+exports.updateJobStatus = async (req, res) => {
+
+  try {
+
     const { status } = req.body;
+
     const job = await Job.findById(req.params.id);
 
     if (!job) {
@@ -155,21 +225,8 @@ exports.updateJobStatus = async (req, res) => {
       });
     }
 
-    // Validate status transitions
-    const validTransitions = {
-      pending: ['accepted', 'cancelled'],
-      accepted: ['in_progress', 'cancelled'],
-      in_progress: ['completed', 'cancelled'],
-    };
-
-    if (!validTransitions[job.status]?.includes(status)) {
-      return res.status(400).json({
-        success: false,
-        message: 'Invalid status transition'
-      });
-    }
-
     job.status = status;
+
     await job.save();
 
     res.status(200).json({
@@ -177,18 +234,24 @@ exports.updateJobStatus = async (req, res) => {
       message: `Job status updated to ${status}`,
       data: job
     });
+
   } catch (error) {
+
     res.status(500).json({
       success: false,
       message: 'Failed to update job status',
       error: error.message
     });
+
   }
+
 };
 
 // Complete job
 exports.completeJob = async (req, res) => {
+
   try {
+
     const job = await Job.findById(req.params.id);
 
     if (!job) {
@@ -206,6 +269,7 @@ exports.completeJob = async (req, res) => {
     }
 
     job.status = 'completed';
+
     await job.save();
 
     res.status(200).json({
@@ -213,18 +277,24 @@ exports.completeJob = async (req, res) => {
       message: 'Job completed successfully',
       data: job
     });
+
   } catch (error) {
+
     res.status(500).json({
       success: false,
       message: 'Failed to complete job',
       error: error.message
     });
+
   }
+
 };
 
 // Cancel job
 exports.cancelJob = async (req, res) => {
+
   try {
+
     const job = await Job.findById(req.params.id);
 
     if (!job) {
@@ -234,14 +304,8 @@ exports.cancelJob = async (req, res) => {
       });
     }
 
-    if (job.status === 'completed') {
-      return res.status(400).json({
-        success: false,
-        message: 'Cannot cancel completed job'
-      });
-    }
-
     job.status = 'cancelled';
+
     await job.save();
 
     res.status(200).json({
@@ -249,20 +313,24 @@ exports.cancelJob = async (req, res) => {
       message: 'Job cancelled successfully',
       data: job
     });
+
   } catch (error) {
+
     res.status(500).json({
       success: false,
       message: 'Failed to cancel job',
       error: error.message
     });
+
   }
+
 };
 
-// Update job details
+// Update job
 exports.updateJob = async (req, res) => {
+
   try {
-    const { title, description, category, pricing, scheduledDate } = req.body;
-    
+
     const job = await Job.findById(req.params.id);
 
     if (!job) {
@@ -272,27 +340,7 @@ exports.updateJob = async (req, res) => {
       });
     }
 
-    // Only job creator can update
-    if (job.user.toString() !== req.user._id.toString()) {
-      return res.status(403).json({
-        success: false,
-        message: 'Not authorized to update this job'
-      });
-    }
-
-    // Can only update if job is pending
-    if (job.status !== 'pending') {
-      return res.status(400).json({
-        success: false,
-        message: 'Can only update pending jobs'
-      });
-    }
-
-    if (title) job.title = title;
-    if (description) job.description = description;
-    if (category) job.category = category;
-    if (pricing?.estimatedBudget) job.pricing.estimatedBudget = pricing.estimatedBudget;
-    if (scheduledDate) job.scheduledDate = scheduledDate;
+    Object.assign(job, req.body);
 
     await job.save();
 
@@ -301,40 +349,30 @@ exports.updateJob = async (req, res) => {
       message: 'Job updated successfully',
       data: job
     });
+
   } catch (error) {
+
     res.status(500).json({
       success: false,
       message: 'Failed to update job',
       error: error.message
     });
+
   }
+
 };
 
 // Delete job
 exports.deleteJob = async (req, res) => {
+
   try {
+
     const job = await Job.findById(req.params.id);
 
     if (!job) {
       return res.status(404).json({
         success: false,
         message: 'Job not found'
-      });
-    }
-
-    // Only job creator can delete
-    if (job.user.toString() !== req.user._id.toString()) {
-      return res.status(403).json({
-        success: false,
-        message: 'Not authorized to delete this job'
-      });
-    }
-
-    // Can only delete if job is pending or cancelled
-    if (!['pending', 'cancelled'].includes(job.status)) {
-      return res.status(400).json({
-        success: false,
-        message: 'Can only delete pending or cancelled jobs'
       });
     }
 
@@ -344,11 +382,15 @@ exports.deleteJob = async (req, res) => {
       success: true,
       message: 'Job deleted successfully'
     });
+
   } catch (error) {
+
     res.status(500).json({
       success: false,
       message: 'Failed to delete job',
       error: error.message
     });
+
   }
+
 };
