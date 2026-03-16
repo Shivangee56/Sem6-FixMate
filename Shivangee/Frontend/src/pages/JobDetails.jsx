@@ -58,7 +58,7 @@ const JobDetails = () => {
   };
 
   if (loading) return <Loading />;
-  if (!job) return <div className="text-center py-12">Job not found</div>;
+  if (!job) return <div className="py-12 text-center">Job not found</div>;
 
   const statusColors = {
     pending: 'badge-warning',
@@ -76,12 +76,12 @@ const JobDetails = () => {
   const canRate = !isWorker && job.status === 'completed' && !job.rated;
 
   return (
-    <div className="container-custom py-12">
+    <div className="py-12 container-custom">
       <div className="max-w-4xl mx-auto">
         <div className="card">
-          <div className="flex justify-between items-start mb-6">
+          <div className="flex items-start justify-between mb-6">
             <div>
-              <h1 className="text-3xl font-bold mb-2">{job.title}</h1>
+              <h1 className="mb-2 text-3xl font-bold">{job.title}</h1>
               <p className="text-gray-500">
                 Posted {formatDistanceToNow(new Date(job.createdAt), { addSuffix: true })}
               </p>
@@ -92,13 +92,13 @@ const JobDetails = () => {
           <div className="space-y-4">
 
             <div>
-              <h3 className="font-bold text-lg mb-2">Description</h3>
+              <h3 className="mb-2 text-lg font-bold">Description</h3>
               <p className="text-gray-700">{job.description}</p>
             </div>
 
             <div>
-              <h3 className="font-bold text-lg mb-2">Details</h3>
-              <div className="grid md:grid-cols-2 gap-4">
+              <h3 className="mb-2 text-lg font-bold">Details</h3>
+              <div className="grid gap-4 md:grid-cols-2">
                 <div>
                   <span className="font-semibold">Category:</span> {job.category}
                 </div>
@@ -120,19 +120,19 @@ const JobDetails = () => {
 
             {job.worker && (
               <div>
-                <h3 className="font-bold text-lg mb-2">Worker</h3>
+                <h3 className="mb-2 text-lg font-bold">Worker</h3>
                 <p>{job.worker.name || 'Assigned'}</p>
               </div>
             )}
 
             {/* 🔐 OTP Display Only For User */}
             {isUser && job.otp && !job.otp.verified && (
-              <div className="bg-green-50 border border-green-300 p-4 rounded-lg">
-                <h3 className="font-bold text-lg mb-2">Worker Verification OTP</h3>
-                <p className="text-3xl font-bold text-green-600 tracking-widest">
+              <div className="p-4 border border-green-300 rounded-lg bg-green-50">
+                <h3 className="mb-2 text-lg font-bold">Worker Verification OTP</h3>
+                <p className="text-3xl font-bold tracking-widest text-green-600">
                   {job.otp.code}
                 </p>
-                <p className="text-sm text-gray-600 mt-1">
+                <p className="mt-1 text-sm text-gray-600">
                   Share this OTP with the worker when they arrive to start the job.
                 </p>
               </div>
@@ -155,8 +155,8 @@ const JobDetails = () => {
             </div>
 
             {showRating && (
-              <div className="border-t pt-6 mt-6">
-                <h3 className="font-bold text-lg mb-4">Rate This Job</h3>
+              <div className="pt-6 mt-6 border-t">
+                <h3 className="mb-4 text-lg font-bold">Rate This Job</h3>
                 <RatingForm onSubmit={handleRatingSubmit} />
               </div>
             )}
