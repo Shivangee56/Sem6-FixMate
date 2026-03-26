@@ -19,7 +19,7 @@ const jobSchema = new mongoose.Schema({
 
   status: {
     type: String,
-    enum: ['pending', 'assigned', 'accepted', 'in_progress', 'completed', 'cancelled'],
+    enum: ['pending', 'accepted', 'in_progress', 'completed', 'cancelled'],
     default: 'pending'
   },
 
@@ -30,18 +30,30 @@ const jobSchema = new mongoose.Schema({
 
   scheduledDate: Date,
 
-  // 🔐 OTP Verification System
+  // 🔐 OTP
   otp: {
-    code: { type: String },
+    code: String,
     verified: { type: Boolean, default: false }
   },
 
-  createdAt: { type: Date, default: Date.now }
+  // 💰 PAYMENT
+  paymentMethod: {
+    type: String,
+    enum: ['cash', 'online'],
+    default: null
+  },
+
+  isPaid: {
+    type: Boolean,
+    default: false
+  },
+
+  paymentStatus: {
+    type: String,
+    enum: ['pending', 'completed'],
+    default: 'pending'
+  }
 
 }, { timestamps: true });
-
-jobSchema.index({ user: 1 });
-jobSchema.index({ worker: 1 });
-jobSchema.index({ status: 1 });
 
 module.exports = mongoose.model('Job', jobSchema);

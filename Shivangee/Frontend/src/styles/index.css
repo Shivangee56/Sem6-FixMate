@@ -59,3 +59,8 @@
 .spinner {
   @apply border-4 border-gray-200 border-t-primary-600 rounded-full w-12 h-12 animate-spin;
 }
+.leaflet-container {
+  height: 100%;
+  width: 100%;
+  border-radius: 12px;
+}

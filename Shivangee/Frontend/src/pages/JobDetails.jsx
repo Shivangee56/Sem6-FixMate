@@ -1,168 +1,224 @@
 import { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import jobService from '../services/jobService';
-import ratingService from '../services/ratingService';
-import RatingForm from '../components/rating/RatingForm';
 import Loading from '../components/common/Loading';
 import toast from 'react-hot-toast';
-import { formatDistanceToNow } from 'date-fns';
+import axios from 'axios';
+import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
+import 'leaflet/dist/leaflet.css';
 
 const JobDetails = () => {
   const { id } = useParams();
   const { user } = useAuth();
-  const navigate = useNavigate();
+
   const [job, setJob] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [showRating, setShowRating] = useState(false);
+  const [otpInput, setOtpInput] = useState('');
+  const [rating, setRating] = useState('');
+
+  const isWorker = user?.role === 'worker';
+  const isUser = user?.role === 'user';
 
   useEffect(() => {
     loadJob();
   }, [id]);
 
+  // 🔁 auto refresh (live tracking)
+  useEffect(() => {
+    if (!job?._id) return;
+
+    const interval = setInterval(() => {
+      loadJob();
+    }, 5000);
+
+    return () => clearInterval(interval);
+  }, [job?._id]);
+
+  // 📍 worker live location update
+  useEffect(() => {
+    if (!isWorker || !job?._id) return;
+
+    const interval = setInterval(() => {
+      navigator.geolocation.getCurrentPosition(async (pos) => {
+        try {
+          await axios.post(
+            `/api/jobs/${job._id}/update-location`,
+            {
+              lat: pos.coords.latitude,
+              lng: pos.coords.longitude
+            },
+            {
+              headers: {
+                Authorization: `Bearer ${localStorage.getItem("token")}`
+              }
+            }
+          );
+        } catch {}
+      });
+    }, 5000);
+
+    return () => clearInterval(interval);
+  }, [job?._id, isWorker]);
+
   const loadJob = async () => {
     try {
       const { data } = await jobService.getJobById(id);
       setJob(data.data);
-    } catch (error) {
+    } catch {
       toast.error('Failed to load job');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleComplete = async () => {
+  // OTP
+  const handleVerifyOTP = async () => {
     try {
-      await jobService.completeJob(id);
-      toast.success('Job completed!');
-      setShowRating(true);
+      if (!otpInput) return toast.error("Enter OTP");
+
+      await axios.post(`/api/jobs/${id}/verify-otp`, { otp: otpInput }, {
+        headers: { Authorization: `Bearer ${localStorage.getItem("token")}` }
+      });
+
+      toast.success('OTP Verified ✅');
+      setOtpInput('');
       loadJob();
-    } catch (error) {
-      toast.error('Failed to complete job');
+    } catch {
+      toast.error('Invalid OTP');
     }
   };
 
-  const handleRatingSubmit = async (ratingData) => {
-    try {
-      await ratingService.createRating({
-        job: id,
-        worker: job.worker._id || job.worker,
-        ...ratingData,
-      });
-      toast.success('Rating submitted!');
-      setShowRating(false);
-      navigate('/user/dashboard');
-    } catch (error) {
-      toast.error('Failed to submit rating');
-    }
+  // Complete job
+  const handleComplete = async () => {
+    await axios.post(`/api/jobs/${job._id}/complete`, {}, {
+      headers: { Authorization: `Bearer ${localStorage.getItem("token")}` }
+    });
+
+    toast.success("Job Completed 🎉");
+    loadJob();
+  };
+
+  // Payment
+  const handlePayment = async () => {
+    await axios.post(`/api/jobs/${job._id}/pay`, {}, {
+      headers: { Authorization: `Bearer ${localStorage.getItem("token")}` }
+    });
+
+    toast.success("Payment Done 💰");
+    loadJob();
+  };
+
+  // Rating
+  const handleRating = async () => {
+    if (!rating) return toast.error("Enter rating");
+
+    await axios.post(`/api/jobs/${job._id}/rate`, { rating }, {
+      headers: { Authorization: `Bearer ${localStorage.getItem("token")}` }
+    });
+
+    toast.success("Rating submitted ⭐");
+    setRating('');
   };
 
   if (loading) return <Loading />;
-  if (!job) return <div className="py-12 text-center">Job not found</div>;
-
-  const statusColors = {
-    pending: 'badge-warning',
-    assigned: 'badge-info',
-    accepted: 'badge-info',
-    in_progress: 'badge-info',
-    completed: 'badge-success',
-    cancelled: 'badge-danger',
-  };
-
-  const isWorker = user?.role === 'worker' || user?.type === 'worker';
-  const isUser = user?.role === 'user' || user?.type === 'user';
-
-  const canComplete = isWorker && job.status === 'in_progress';
-  const canRate = !isWorker && job.status === 'completed' && !job.rated;
+  if (!job) return <div className="text-center">Job not found</div>;
 
   return (
-    <div className="py-12 container-custom">
-      <div className="max-w-4xl mx-auto">
-        <div className="card">
-          <div className="flex items-start justify-between mb-6">
-            <div>
-              <h1 className="mb-2 text-3xl font-bold">{job.title}</h1>
-              <p className="text-gray-500">
-                Posted {formatDistanceToNow(new Date(job.createdAt), { addSuffix: true })}
-              </p>
-            </div>
-            <span className={`badge ${statusColors[job.status]}`}>{job.status}</span>
-          </div>
+    <div className="container-custom py-12">
+      <div className="card max-w-3xl mx-auto p-6 shadow-lg rounded-xl">
 
-          <div className="space-y-4">
+        <h1 className="text-3xl font-bold mb-3">{job.title}</h1>
+        <p className="mb-4 text-gray-600">{job.description}</p>
 
-            <div>
-              <h3 className="mb-2 text-lg font-bold">Description</h3>
-              <p className="text-gray-700">{job.description}</p>
-            </div>
-
-            <div>
-              <h3 className="mb-2 text-lg font-bold">Details</h3>
-              <div className="grid gap-4 md:grid-cols-2">
-                <div>
-                  <span className="font-semibold">Category:</span> {job.category}
-                </div>
-
-                {job.pricing?.estimatedBudget && (
-                  <div>
-                    <span className="font-semibold">Budget:</span> ₹{job.pricing.estimatedBudget}
-                  </div>
-                )}
-
-                {job.scheduledDate && (
-                  <div>
-                    <span className="font-semibold">Scheduled:</span>{' '}
-                    {new Date(job.scheduledDate).toLocaleDateString()}
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {job.worker && (
-              <div>
-                <h3 className="mb-2 text-lg font-bold">Worker</h3>
-                <p>{job.worker.name || 'Assigned'}</p>
-              </div>
-            )}
-
-            {/* 🔐 OTP Display Only For User */}
-            {isUser && job.otp && !job.otp.verified && (
-              <div className="p-4 border border-green-300 rounded-lg bg-green-50">
-                <h3 className="mb-2 text-lg font-bold">Worker Verification OTP</h3>
-                <p className="text-3xl font-bold tracking-widest text-green-600">
-                  {job.otp.code}
-                </p>
-                <p className="mt-1 text-sm text-gray-600">
-                  Share this OTP with the worker when they arrive to start the job.
-                </p>
-              </div>
-            )}
-
-            <div className="flex gap-4 pt-4">
-
-              {canComplete && (
-                <button onClick={handleComplete} className="btn-primary">
-                  Mark as Completed
-                </button>
-              )}
-
-              {canRate && !showRating && (
-                <button onClick={() => setShowRating(true)} className="btn-primary">
-                  Rate Worker
-                </button>
-              )}
-
-            </div>
-
-            {showRating && (
-              <div className="pt-6 mt-6 border-t">
-                <h3 className="mb-4 text-lg font-bold">Rate This Job</h3>
-                <RatingForm onSubmit={handleRatingSubmit} />
-              </div>
-            )}
-
-          </div>
+        <div className="space-y-2">
+          <p><b>Status:</b> {job.status}</p>
+          <p><b>Budget:</b> ₹{job.pricing?.estimatedBudget}</p>
+          <p><b>Payment:</b> {job.paymentMethod}</p>
         </div>
+
+        {/* OTP display (USER) */}
+        {isUser && job.otp && !job.otp.verified && (
+          <div className="bg-green-100 p-4 mt-4 rounded">
+            <p className="font-bold">OTP: {job.otp.code}</p>
+          </div>
+        )}
+
+        {/* OTP input (WORKER) */}
+        {isWorker && job.otp && !job.otp.verified && (
+          <div className="mt-4">
+            <input
+              value={otpInput}
+              onChange={(e) =>
+                setOtpInput(e.target.value.replace(/[^0-9]/g, ''))
+              }
+              className="border p-2 w-full mb-2"
+              placeholder="Enter OTP"
+            />
+            <button onClick={handleVerifyOTP} className="btn-primary w-full">
+              Verify OTP
+            </button>
+          </div>
+        )}
+
+        {/* COMPLETE */}
+        {isWorker && job.status === 'in_progress' && (
+          <button onClick={handleComplete} className="btn-primary mt-4 w-full">
+            Mark as Completed ✅
+          </button>
+        )}
+
+        {/* PAYMENT */}
+        {isUser && job.status === 'completed' && !job.isPaid && (
+          <button onClick={handlePayment} className="btn-primary mt-4 w-full">
+            Pay Now 💰
+          </button>
+        )}
+
+        {/* RATING */}
+        {isUser && job.isPaid && (
+          <div className="mt-4">
+            <input
+              type="number"
+              min="1"
+              max="5"
+              value={rating}
+              onChange={(e) => setRating(e.target.value)}
+              className="border p-2 w-full mb-2"
+              placeholder="Rate (1-5)"
+            />
+            <button onClick={handleRating} className="btn-primary w-full">
+              Submit Rating ⭐
+            </button>
+          </div>
+        )}
+
+        {/* MAP */}
+        {job.worker?.location?.coordinates && (
+          <div className="mt-6">
+            <h3 className="font-bold mb-2">Live Location 📍</h3>
+
+            <MapContainer
+              center={[
+                job.worker.location.coordinates[1],
+                job.worker.location.coordinates[0]
+              ]}
+              zoom={13}
+              style={{ height: "300px", width: "100%" }}
+            >
+              <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+              <Marker
+                position={[
+                  job.worker.location.coordinates[1],
+                  job.worker.location.coordinates[0]
+                ]}
+              >
+                <Popup>Worker is here 🚀</Popup>
+              </Marker>
+            </MapContainer>
+          </div>
+        )}
+
       </div>
     </div>
   );

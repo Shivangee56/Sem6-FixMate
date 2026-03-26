@@ -62,7 +62,7 @@ exports.getAllJobs = async (req, res) => {
 
     const jobs = await Job.find(query)
       .populate('user', 'name email phone')
-      .populate('worker', 'name email phone rating')
+    .populate('worker', 'name email phone rating location')
       .sort({ createdAt: -1 });
 
     res.status(200).json({
@@ -86,7 +86,7 @@ exports.getJobById = async (req, res) => {
 
     const job = await Job.findById(req.params.id)
       .populate('user', 'name email phone address')
-      .populate('worker', 'name email phone rating bio');
+      .populate('worker', 'name email phone rating bio location')
 
     if (!job) {
       return res.status(404).json({
@@ -137,9 +137,10 @@ exports.acceptJob = async (req, res) => {
 
     // 🔐 Generate OTP
     job.otp = {
-      code: generateOTP(),
-      verified: false
-    };
+  code: generateOTP().toString(), // ✅ force string
+  verified: false,
+  createdAt: new Date() // ✅ optional but good practice
+};
 
     await job.save();
 
@@ -165,10 +166,11 @@ exports.acceptJob = async (req, res) => {
 
 // 🔐 Verify OTP and start job
 exports.verifyJobOTP = async (req, res) => {
-
   try {
+    let { otp } = req.body;
 
-    const { otp } = req.body;
+    // ✅ Convert to string & clean input
+    otp = otp.toString().trim();
 
     const job = await Job.findById(req.params.id);
 
@@ -179,13 +181,24 @@ exports.verifyJobOTP = async (req, res) => {
       });
     }
 
-    if (!job.otp || job.otp.code !== otp) {
+    if (!job.otp || !job.otp.code) {
+      return res.status(400).json({
+        success: false,
+        message: "No OTP found"
+      });
+    }
+
+    // ✅ Convert stored OTP also to string
+    const storedOtp = job.otp.code.toString().trim();
+
+    if (storedOtp !== otp) {
       return res.status(400).json({
         success: false,
         message: "Invalid OTP"
       });
     }
 
+    // ✅ Success
     job.otp.verified = true;
     job.status = "in_progress";
 
@@ -198,15 +211,12 @@ exports.verifyJobOTP = async (req, res) => {
     });
 
   } catch (error) {
-
     res.status(500).json({
       success: false,
       message: "OTP verification failed",
       error: error.message
     });
-
   }
-
 };
 
 // Update job status
@@ -268,7 +278,13 @@ exports.completeJob = async (req, res) => {
       });
     }
 
-    job.status = 'completed';
+   job.status = 'completed';
+
+// 💰 force payment pending
+job.paymentStatus = 'pending';
+job.isPaid = false;
+
+await job.save();
 
     await job.save();
 
@@ -393,4 +409,106 @@ exports.deleteJob = async (req, res) => {
 
   }
 
+};
+
+exports.makePayment = async (req, res) => {
+  try {
+    const job = await Job.findById(req.params.id);
+
+    if (!job) {
+      return res.status(404).json({ success: false, message: "Job not found" });
+    }
+
+    job.isPaid = true;
+    job.paymentStatus = 'completed';
+
+    await job.save();
+
+    res.json({
+      success: true,
+      message: "Payment successful",
+      data: job
+    });
+
+  } catch (err) {
+    res.status(500).json({
+      success: false,
+      message: "Payment failed"
+    });
+  }
+};
+
+exports.addRating = async (req, res) => {
+  try {
+    const { rating } = req.body;
+
+    if (!rating || rating < 1 || rating > 5) {
+      return res.status(400).json({
+        success: false,
+        message: "Rating must be between 1 and 5"
+      });
+    }
+
+    const job = await Job.findById(req.params.id);
+
+    if (!job || !job.worker) {
+      return res.status(404).json({
+        success: false,
+        message: "Worker not found"
+      });
+    }
+
+    const worker = await Worker.findById(job.worker);
+
+    if (!worker) {
+      return res.status(404).json({
+        success: false,
+        message: "Worker not found"
+      });
+    }
+
+    // ✅ FIXED LOGIC (as per your schema)
+    worker.rating.count += 1;
+    worker.rating.average =
+      (worker.rating.average * (worker.rating.count - 1) + Number(rating)) /
+      worker.rating.count;
+
+    await worker.save();
+
+    res.json({
+      success: true,
+      message: "Rating added successfully"
+    });
+
+  } catch (err) {
+    console.log(err);
+    res.status(500).json({
+      success: false,
+      message: "Rating failed"
+    });
+  }
+};
+
+
+exports.updateWorkerLocation = async (req, res) => {
+  try {
+    const { lat, lng } = req.body;
+
+    const job = await Job.findById(req.params.id);
+
+    if (!job) {
+      return res.status(404).json({ success: false });
+    }
+
+    // update worker location
+    const worker = await Worker.findById(req.worker._id);
+
+    worker.location.coordinates = [lng, lat]; // Mongo uses [lng, lat]
+    await worker.save();
+
+    res.json({ success: true });
+
+  } catch (err) {
+    res.status(500).json({ success: false });
+  }
 };

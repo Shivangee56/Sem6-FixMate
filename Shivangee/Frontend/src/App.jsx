@@ -20,9 +20,10 @@ import WorkerSearch from './pages/WorkerSearch';
 import CreateJob from './pages/CreateJob';
 import JobDetails from './pages/JobDetails';
 import NotFound from './pages/NotFound';
-
-/* ⭐ NEW PAGE IMPORT */
 import WorkerDetails from './pages/WorkerDetails';
+
+/* ⭐ NEW: Payment Page Wrapper */
+import PaymentPageWrapper from './pages/PaymentPageWrapper';
 
 function App() {
   return (
@@ -33,27 +34,27 @@ function App() {
             <Navbar />
             <main className="flex-grow">
               <Routes>
-             
+
                 <Route path="/" element={<Home />} />
                 <Route path="/login" element={<Login />} />
                 <Route path="/register/user" element={<RegisterUser />} />
                 <Route path="/register/worker" element={<RegisterWorker />} />
-                
+
                 <Route path="/user/dashboard" element={<PrivateRoute role="user"><UserDashboard /></PrivateRoute>} />
                 <Route path="/user/profile" element={<PrivateRoute role="user"><UserProfile /></PrivateRoute>} />
 
                 <Route path="/workers" element={<PrivateRoute role="user"><WorkerSearch /></PrivateRoute>} />
-
-                {/* ⭐ NEW WORKER DETAILS ROUTE */}
                 <Route path="/worker/:id" element={<PrivateRoute role="user"><WorkerDetails /></PrivateRoute>} />
 
                 <Route path="/jobs/create" element={<PrivateRoute role="user"><CreateJob /></PrivateRoute>} />
                 <Route path="/jobs/:id" element={<PrivateRoute><JobDetails /></PrivateRoute>} />
+
+                <Route path="/jobs/:id/payment" element={<PrivateRoute><PaymentPageWrapper /></PrivateRoute>} />
+
                 <Route path="/chat" element={<PrivateRoute><ChatPage /></PrivateRoute>} />
-               
                 <Route path="/worker/dashboard" element={<PrivateRoute role="worker"><WorkerDashboard /></PrivateRoute>} />
                 <Route path="/worker/profile" element={<PrivateRoute role="worker"><WorkerProfile /></PrivateRoute>} />
-                
+
                 <Route path="*" element={<NotFound />} />
               </Routes>
             </main>
