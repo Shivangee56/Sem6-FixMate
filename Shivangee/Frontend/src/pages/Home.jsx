@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import { FaWrench, FaUserShield, FaClock, FaStar } from 'react-icons/fa';
+import WorkerFinderChatbotPage from './Chat';
 
 const Home = () => {
   const features = [

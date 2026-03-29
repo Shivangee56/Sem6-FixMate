@@ -24,6 +24,7 @@ import WorkerDetails from './pages/WorkerDetails';
 
 /* ⭐ NEW: Payment Page Wrapper */
 import PaymentPageWrapper from './pages/PaymentPageWrapper';
+import FixMateSupportPage from './pages/Chat';
 
 function App() {
   return (
@@ -51,10 +52,10 @@ function App() {
 
                 <Route path="/jobs/:id/payment" element={<PrivateRoute><PaymentPageWrapper /></PrivateRoute>} />
 
-                <Route path="/chat" element={<PrivateRoute><ChatPage /></PrivateRoute>} />
+                <Route path="/chat" element={<PrivateRoute><FixMateSupportPage /></PrivateRoute>} />
                 <Route path="/worker/dashboard" element={<PrivateRoute role="worker"><WorkerDashboard /></PrivateRoute>} />
                 <Route path="/worker/profile" element={<PrivateRoute role="worker"><WorkerProfile /></PrivateRoute>} />
-
+                {/* <WorkerFinderChatbotPage/> */}
                 <Route path="*" element={<NotFound />} />
               </Routes>
             </main>

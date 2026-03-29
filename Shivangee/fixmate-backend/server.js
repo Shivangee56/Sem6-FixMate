@@ -12,7 +12,7 @@ const { initSocket } = require('./config/socket');
 dotenv.config();
 
 // Connect to MongoDB
-connectDB();
+// connectDB();
 
 // Initialize Express app
 const app = express();
@@ -78,6 +78,8 @@ app.use('/api/chats', require('./routes/chats'));
 app.use('/api/notifications', require('./routes/notifications'));
 app.use('/api/admin', require('./routes/admin'));
 app.use('/api/recommendations', require('./routes/recommendation'));
+app.use('/api/chat', require('./routes/chat.route'));
+
 
 
 // 404 handler

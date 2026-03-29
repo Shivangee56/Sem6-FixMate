@@ -13,6 +13,9 @@ export default {
 
   cancelJob: (id) => api.post(`/jobs/${id}/cancel`),
 
+chat: (messages) =>
+    api.post('/chat', { messages }),
+
   // 🔐 OTP VERIFY
   verifyOTP: (id, otp) =>
     api.post(`/jobs/${id}/verify-otp`, { otp }),
